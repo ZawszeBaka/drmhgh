@@ -1,0 +1,6 @@
+set(lane_detect_SETUP_PY_VERSION "0.0.0")
+set(lane_detect_SETUP_PY_SCRIPTS "")
+set(lane_detect_SETUP_PY_PACKAGES "lane_detect")
+set(lane_detect_SETUP_PY_PACKAGE_DIRS "include/lane_detect")
+set(lane_detect_SETUP_PY_MODULES "")
+set(lane_detect_SETUP_PY_MODULE_DIRS "")

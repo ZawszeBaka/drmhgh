@@ -1,0 +1,14 @@
+/home/yus/Documents/_tmp/_ros_tmp/install/_setup_util.py
+/home/yus/Documents/_tmp/_ros_tmp/install/env.sh
+/home/yus/Documents/_tmp/_ros_tmp/install/setup.bash
+/home/yus/Documents/_tmp/_ros_tmp/install/setup.sh
+/home/yus/Documents/_tmp/_ros_tmp/install/setup.zsh
+/home/yus/Documents/_tmp/_ros_tmp/install/.rosinstall
+/home/yus/Documents/_tmp/_ros_tmp/install/lib/pkgconfig/example.pc
+/home/yus/Documents/_tmp/_ros_tmp/install/share/example/cmake/exampleConfig.cmake
+/home/yus/Documents/_tmp/_ros_tmp/install/share/example/cmake/exampleConfig-version.cmake
+/home/yus/Documents/_tmp/_ros_tmp/install/share/example/package.xml
+/home/yus/Documents/_tmp/_ros_tmp/install/lib/pkgconfig/lane_detect.pc
+/home/yus/Documents/_tmp/_ros_tmp/install/share/lane_detect/cmake/lane_detectConfig.cmake
+/home/yus/Documents/_tmp/_ros_tmp/install/share/lane_detect/cmake/lane_detectConfig-version.cmake
+/home/yus/Documents/_tmp/_ros_tmp/install/share/lane_detect/package.xml

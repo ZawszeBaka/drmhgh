@@ -1,0 +1,12 @@
+<launch>
+
+	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+		<param name="port" value="9090"/>
+	</include>
+
+	<!--<node name="talker" pkg="example" type="publisher_node.py" output="screen" />-->
+
+	<node name="image_subscriber" pkg="example" type="image_subscriber.py" output="screen" />
+
+
+</launch>

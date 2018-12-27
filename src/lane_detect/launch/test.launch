@@ -1,0 +1,16 @@
+<launch>
+
+	<!-- declare arg to be passed in -->
+	<arg name="test" />
+	<arg name="server_on"/>
+
+	<group if="$(arg server_on)">
+	  <!-- stuff that will only be evaluated if foo is true -->
+		<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+			<param name="port" value="9090"/>
+		</include>
+	</group>
+	<node name="test" pkg="lane_detect" type="test.py" output="screen"  args="test:=$(arg test)"  />
+
+
+</launch>

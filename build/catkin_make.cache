@@ -1,0 +1,2 @@
+example:lane_detect
+-DCATKIN_DEVEL_PREFIX=/home/yus/Documents/_tmp/_ros_tmp/devel -DCMAKE_INSTALL_PREFIX=/home/yus/Documents/_tmp/_ros_tmp/install -G Unix Makefiles
