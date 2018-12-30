@@ -15,6 +15,9 @@ from std_msgs.msg import Float32
 import lane_detector
 from lane_detector import LaneDetector
 
+import sign_recognizer
+from sign_recognizer import SignRecognizer
+
 '''
     EVERYTHING IS GOING ON HERE:
         - Subscribes the images from Unity3D
@@ -24,16 +27,18 @@ from lane_detector import LaneDetector
 
 '''
 
-VERBOSE = False
+VERBOSE = False # for checking connection
 
 class Controller:
 
     def __init__(self,team_name, manual=False):
         ''' Initialize ROS pub , ros sub '''
 
-        self.team_name = team_name
-
         self.lane_detector = LaneDetector()
+        self.sign_recognizer = SignRecognizer()
+        self.sign_recognizer.w, self.sign_recognizer.h = self.lane_detector.w , self.lane_detector.h
+
+        self.team_name = team_name
 
         if not manual:
             self.publisher_speed = rospy.Publisher('/' + team_name + '_speed', Float32, queue_size = 1 )
@@ -48,6 +53,12 @@ class Controller:
         # self.skip_frame = 2
         # self.i = 0
 
+        # self.skip_first_frame = 5
+        # self.i_th_skip = 0
+
+        self.n_average = 2
+        self.angle_lst = []
+
         if VERBOSE:
             print "subscribed to /camera/image/compressed"
 
@@ -61,6 +72,7 @@ class Controller:
         np_arr = np.fromstring(ros_data.data, np.uint8)
         # img = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR) # OpenCV >= 3.0
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         angle = Float32()
         speed = Float32()
@@ -73,12 +85,32 @@ class Controller:
         #     angle, speed = self.pre_angle, self.pre_speed
         # self.i += 1
 
-        angle.data, speed.data =self.lane_detector.detect(img)
+        # Lane Detecting
+        angle.data, speed.data = self.lane_detector.detect(img)
 
-        print(' [INFO] angle = ', angle.data, ', speed = ', speed.data)
+        # Sign Recognizing
+        # self.sign_recognizer.detect(img)
 
-        self.publisher_speed.publish(speed)
-        self.publisher_angle.publish(angle)
+        # angle.data , speed.data = 0,50
+        # cv2.imshow('img',img)
+        # cv2.waitKey(1)
+
+        # Control car
+        if len(self.angle_lst) < self.n_average:
+            self.angle_lst.append(angle.data)
+        else:
+            self.angle_lst.pop(0)
+            self.angle_lst.append(angle.data)
+
+            angle.data = sum(self.angle_lst)/self.n_average
+
+            # print ' [INFO] angle = ', angle.data, ', speed = ', speed.data
+
+            self.publisher_speed.publish(speed)
+            self.publisher_angle.publish(angle)
+
+    def keep_append(angle):
+        ''' angle : angle.data '''
 
     def save_video_callback(self,ros_data):
         #### direct conversion to CV2 ####

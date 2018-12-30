@@ -7,7 +7,7 @@ import cv2
 import roslib
 import rospy
 
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 '''
     Check value in __init__
@@ -69,10 +69,10 @@ class LaneDetector:
         self._debug_process(img)
 
     def debug_video(self):
-        video_url = '/home/yus/Documents/Video/video_test.avi'
+        video_url = '/home/yus/Documents/Video/left.avi'
         cap = cv2.VideoCapture(video_url)
         if not cap.isOpened():
-            print('[ERROR] Opening video stream or file. Failed! Make sure the video path exists!')
+            print '[ERROR] Opening video stream or file. Failed! Make sure the video path exists!'
             return
 
         while True:
@@ -89,6 +89,8 @@ class LaneDetector:
 
                 gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
+                self._debug_process(img,wait_key_val=10,reduced = False)
+
                 #
                 lowThreshold = 90
                 ratio = 3
@@ -98,21 +100,23 @@ class LaneDetector:
                 hough_lines = self.apply_hough(np.uint8(warped_region_of_line))
 
                 cv2.imshow('Hough',hough_lines)
-                if cv2.waitKey(2) & 0xff == 27:
+                if cv2.waitKey(10) & 0xff == 'q':
                     break
             else:
                 break
-
-
 
     def _debug_process(self,img,wait_key_val = 0, reduced=False):
         ''' if wait_key_val == 0 , this is image processing
             otherwise, this is video processing '''
 
-        if not reduced:
-            img_vs_pts = self.add_points(img, self.src)
-            cv2.imshow('Original(src pts)', img_vs_pts)
-            self.waitKey(wait_key_val)
+        n_th_win = 3 # window number 2
+
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+        # if not reduced:
+        #     img_vs_pts = self.add_points(img, self.src)
+        #     cv2.imshow('Original(src pts)', img_vs_pts)
+        #     self.waitKey(wait_key_val)
 
         ## Choosing 4 pts
         # warped_img, _ = self.warp(img, self.src, self.dst)
@@ -127,7 +131,7 @@ class LaneDetector:
         #                 s_thresh_max = self.s_thresh_max)
 
         # gradient threshold
-        g_bin = self.apply_gradient_threshold(img,
+        g_bin = self.apply_gradient_threshold(gray,
                         abs_sobel_thresh_x = self.abs_sobel_thresh_x,
                         abs_sobel_thresh_y = self.abs_sobel_thresh_y,
                         _mag_thresh = self._mag_thresh,
@@ -138,44 +142,37 @@ class LaneDetector:
         combined_bin = g_bin;
         if not reduced:
             cv2.imshow('Combined (color+gradient) threshold', combined_bin )
-            self.waitKey(wait_key_val)
+            # self.waitKey(wait_key_val)
 
         # warped line
-        warped_region_of_line, Minv = self.warp(combined_bin, self.src, self.dst)
-        if not reduced:
+        warped_region_of_line = self.warp(combined_bin, self.src, self.dst)
+        if not reduced or True: # debug here
             cv2.imshow('Warped Region of line (half bottom)', warped_region_of_line)
-            self.waitKey(wait_key_val)
+            # self.waitKey(wait_key_val)
+
 
         ### Stage 3:
         # histogram
         histogram = self.get_histogram(warped_region_of_line)
-        if wait_key_val == 0:
-            plt.plot(histogram)
-            plt.title('Histogram ')
-            plt.show()
+        # if wait_key_val == 0:
+        #     plt.plot(histogram)
+        #     plt.title('Histogram ')
+        #     plt.show()
 
         # slide window
-        status, center_windows, lines_info, ret = self.slide_window(warped_region_of_line,
+        status, center_windows = self.slide_window(warped_region_of_line,
                                 histogram,
                                 margin = self.margin,
                                 minpix = self.minpix,
-                                nwindows = self.nwindows,
+                                nwindows = self.nwindows, ewindow =n_th_win,
                                 wait_key_val=wait_key_val,
                                 reduced = reduced)
 
-        # Draw lane line
-        # Error , not fixed yet
-        #     lines_info['leftx'] = nonzerox[left_lane_inds]
-        if ret:
-            rs = self.draw_lane_lines(img,warped_region_of_line,Minv, lines_info)
-        else:
-            if wait_key_val == 0 :
-                print(''' [WARNING] Cannot detect lane \n\t 1. You are out of lane \n\t 2. Change the value \n\t 3. Make sure you choose the correct 4 points ''')
-            rs = img
+        rs = np.copy(img)
 
-        if not status:
+        if status:
             # If still detected line !!
-            n_th_win = 3 # window number 2
+            # n_th_win = 3 # window number 2
             angle = self.calc_angle(center_windows,n_th = n_th_win)
             speed = self.calc_speed()
 
@@ -187,7 +184,7 @@ class LaneDetector:
             return angle, speed
         else:
             # Failed to detect line or the car is out of lane
-            print('[INFO] Failed to detect line or the car is out of lane !')
+            # print '[INFO] Failed to detect line or the car is out of lane !'
             return 0.0, 0.0
 
     ## ================== COMPUTATION ================================
@@ -221,11 +218,11 @@ class LaneDetector:
 
         # the matrix
         M = cv2.getPerspectiveTransform(src, dst)
-        Minv = cv2.getPerspectiveTransform(dst, src)
+        # Minv = cv2.getPerspectiveTransform(dst, src)
 
         warped_img = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
 
-        return warped_img, Minv
+        return warped_img
 
     def apply_color_threshold(self,img, s_thresh_min = 0, s_thresh_max = 1 ):
         # hue, lightness, saturation
@@ -237,8 +234,7 @@ class LaneDetector:
 
         return s_binary
 
-    def abs_sobel_thresh(self,img, orient='x', sobel_kernel=3, thresh=(0,255)):
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    def abs_sobel_thresh(self,gray, orient='x', sobel_kernel=3, thresh=(0,255)):
         isX = True if orient == 'x' else False
 
         # applying sobel filter corresponding to axis x or y
@@ -257,8 +253,7 @@ class LaneDetector:
 
         return grad_binary
 
-    def mag_thresh(self,img, sobel_kernel=3, mag_thresh=(0,255)):
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    def mag_thresh(self,gray, sobel_kernel=3, mag_thresh=(0,255)):
 
         # applying sobel filter corresponding to the axis x , y , respectively
         sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
@@ -276,8 +271,7 @@ class LaneDetector:
 
         return mag_binary
 
-    def dir_threshold(self,img, sobel_kernel=3, thresh=(0, np.pi/2)):
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    def dir_threshold(self,gray, sobel_kernel=3, thresh=(0, np.pi/2)):
 
         sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
@@ -296,20 +290,20 @@ class LaneDetector:
 
         return dir_binary
 
-    def apply_gradient_threshold(self,img, ksize=3,
+    def apply_gradient_threshold(self,gray, ksize=3,
                         abs_sobel_thresh_x = (20,100),
                         abs_sobel_thresh_y = (20,100),
                         _mag_thresh = (30,100),
                         _dir_thresh=(0.7,1.3),
                         is_test = False): # kszie = kernel size , ksize = 3 => kernel is 3x3 matrix
-        gradx = self.abs_sobel_thresh(img, orient='x', sobel_kernel=ksize, thresh=abs_sobel_thresh_x)
-        grady = self.abs_sobel_thresh(img, orient='y', sobel_kernel=ksize, thresh=abs_sobel_thresh_y)
+        gradx = self.abs_sobel_thresh(gray, orient='x', sobel_kernel=ksize, thresh=abs_sobel_thresh_x)
+        grady = self.abs_sobel_thresh(gray, orient='y', sobel_kernel=ksize, thresh=abs_sobel_thresh_y)
 
         # magnitude
-        mag_binary = self.mag_thresh(img, sobel_kernel=ksize, mag_thresh=_mag_thresh)
+        mag_binary = self.mag_thresh(gray, sobel_kernel=ksize, mag_thresh=_mag_thresh)
 
         # direction (angle)
-        dir_binary = self.dir_threshold(img, sobel_kernel=ksize, thresh=_dir_thresh)
+        dir_binary = self.dir_threshold(gray, sobel_kernel=ksize, thresh=_dir_thresh)
 
         combined = np.zeros_like(dir_binary)
         combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
@@ -322,7 +316,6 @@ class LaneDetector:
     def combine_threshold(self,c_bin, g_bin):
         combined_binary = np.zeros_like(g_bin)
         combined_binary[(c_bin == 1) | (g_bin == 1)] = 1
-
         return combined_binary
 
     def get_histogram(self,binary_warped):
@@ -332,18 +325,26 @@ class LaneDetector:
     def slide_window(self,binary_warped, histogram,
                  margin=50,
                  minpix=50,
-                 nwindows = 9,
+                 nwindows = 9, ewindow = 3,
                  wait_key_val = 0,
                  reduced = False):
-        out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
+
+        if not reduced:
+            out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
+
+        # indices of the elements that are non-zero  [x_array[...], y_array[...]]
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
 
         # midpoint
         # midpoint = np.int(histogram.shape[0]/2)
-        status, midpoint = self.find_midpoint(histogram)
+        # status = True
+        status, midpoint = self.find_midpoint(histogram,np.min(nonzerox),np.max(nonzerox))
         if not status:
-            return False, False , False , False
+            return False, False
         if not reduced:
-            print('[INFO] midpoint = ', midpoint)
+            print '[DEBUG] midpoint = ', midpoint
 
         # left boundary to the middle
         leftx_base = np.argmax(histogram[:midpoint])
@@ -351,13 +352,7 @@ class LaneDetector:
         # right boundary to the middle
         rightx_base = np.argmax(histogram[midpoint:]) + midpoint
 
-        nwindows = 9
         window_height = np.int(binary_warped.shape[0]/nwindows)
-
-        # indices of the elements that are non-zero  [x_array[...], y_array[...]]
-        nonzero = binary_warped.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
 
         leftx_current = leftx_base
         rightx_current = rightx_base
@@ -380,8 +375,9 @@ class LaneDetector:
             win_xright_low = rightx_current - margin
             win_xright_high = rightx_current + margin
 
-            cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0,255,0), 2) # img, first_point, second_point, color, thickness
-            cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0,255,0), 2) # img, first_point, second_point, color, thickness
+            if not reduced:
+                cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0,255,0), 2) # img, first_point, second_point, color, thickness
+                cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0,255,0), 2) # img, first_point, second_point, color, thickness
 
             good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) &
                               (nonzerox >= win_xleft_low) & (nonzerox < win_xleft_high)).nonzero()[0] # just get the axis x
@@ -415,54 +411,17 @@ class LaneDetector:
 
                 if wait_key_val == 0 :
                     cv2.imshow('Sliding Window',out_img)
-                    self.waitKey(wait_key_val)
+                    # self.waitKey(wait_key_val)
                 elif window == nwindows-1:
                     cv2.imshow('Sliding Window',out_img)
-                    self.waitKey(wait_key_val)
+                    # self.waitKey(wait_key_val)
                 else:
                     pass
 
-        lines_info = dict()
+            if window == ewindow:
+                break
 
-        if not reduced:
-            lines_info['ploty'] = np.linspace(0,binary_warped.shape[0]-1, binary_warped.shape[0])
-            try:
-                left_fit = np.polyfit(lefty, leftx, 2)  # x = a y^2 + b y + c
-                right_fit = np.polyfit(righty, rightx, 2) # y = a y^2 + b y + c
-
-                # for plotting
-                y = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0]) # start , stop, num
-
-                a = left_fit[0]
-                b = left_fit[1]
-                c = left_fit[2]
-                left_fitx = a * y ** 2 + b * y + c
-                left_lane_inds = ((nonzerox > (a*(nonzeroy**2) + b*nonzeroy + c - margin)) &
-                    (nonzerox < (a*(nonzeroy**2) + b*nonzeroy + c + margin))).nonzero()[0]
-
-                a = right_fit[0]
-                b = right_fit[1]
-                c = right_fit[2]
-                right_fitx = a * y ** 2 + b * y + c
-                right_lane_inds = ((nonzerox > (a*(nonzeroy**2) + b*nonzeroy + c - margin)) &
-                    (nonzerox < (a*(nonzeroy**2) + b*nonzeroy + c + margin))).nonzero()[0]
-
-                # need fix here !
-                lines_info['leftx'] = nonzerox[left_lane_inds]
-                lines_info['lefty'] = nonzeroy[left_lane_inds]
-                lines_info['rightx'] = nonzerox[right_lane_inds]
-                lines_info['righty'] = nonzeroy[right_lane_inds]
-
-                lines_info['left_fitx'] = left_fitx
-                lines_info['right_fitx'] = right_fitx
-                ret = True
-
-            except:
-                ret = False
-        else:
-            ret = False
-
-        return True, center_windows, lines_info, ret
+        return True, center_windows
 
     def draw_lane_lines(self,original_image, warped_img, Minv, lines_info):
         leftx = lines_info['leftx']
@@ -485,44 +444,29 @@ class LaneDetector:
 
         return result
 
-    def find_midpoint(self,histogram, eps=5):
+    def find_midpoint(self,histogram, x_min, x_max ,eps=5):
 
         hist = np.copy(histogram).reshape(-1)
 
-        # find min
-        i = 0
-        while True:
-            if hist[i] != 0:
-                break
-            elif i == hist.shape[0]-1:
-                return False, 0
-            else:
-                i += 1
-        _min = i
-
-        # find max
-        i = hist.shape[0]-1
-        while True:
-            if hist[i] != 0:
-                break
-            else:
-                i -= 1
-        _max = i
-
-        def mean(hist, _range):
-            count = 0.0
-            s = 0.0
-            for i in _range:
-                s += i*hist[i]
-                count += hist[i]
+        def mean(x_low,x_high):
+            # count = 0.0
+            # s = 0.0
+            # for i in _range:
+            #     # s += i*hist[i]
+            #     # count += hist[i]
+            sub_hist = hist[x_low:x_high]
+            count = np.sum(sub_hist)
+            s = np.sum(np.array(range(x_low,x_high)) * sub_hist)
             return s/count
 
         # find best separated value
-        T = _min + float(_max - _min)/2
+        T = x_min + float(x_max - x_min)/2
         while True:
-            m1 = mean(hist,range(0,int(T)))
-            m2 = mean(hist,range(int(T),hist.shape[0]))
+            m1 = mean(x_min,np.int(T))
+            m2 = mean(np.int(T),x_max)
             T_new = (m1+m2)/2
+            if np.isnan(T_new):
+                return False, T
             if abs(T - T_new) < eps:
                 break
             else:
