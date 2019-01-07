@@ -12,6 +12,8 @@ import rospy
 from sensor_msgs.msg import CompressedImage , Image
 from std_msgs.msg import Float32
 
+from cv_bridge import CvBridge, CvBridgeError
+
 import lane_detector
 from lane_detector import LaneDetector
 
@@ -27,7 +29,7 @@ from sign_recognizer import SignRecognizer
 
 '''
 
-VERBOSE = False # for checking connection
+VERBOSE = True # for checking connection
 
 class Controller:
 
@@ -59,6 +61,8 @@ class Controller:
         self.n_average = 2
         self.angle_lst = []
 
+        self.bridge = CvBridge()
+
         if VERBOSE:
             print "subscribed to /camera/image/compressed"
 
@@ -68,11 +72,16 @@ class Controller:
         if VERBOSE:
             print 'received image of type: "%s"' % ros_data.format
 
-        #### direct conversion to CV2 ####
-        np_arr = np.fromstring(ros_data.data, np.uint8)
-        # img = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR) # OpenCV >= 3.0
-        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # #### direct conversion to CV2 ####
+        # np_arr = np.fromstring(ros_data.data, np.uint8)
+        # # img = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
+        # img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR) # OpenCV >= 3.0
+        # # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        try:
+            img = self.bridge.imgmsg_to_cv2(ros_data, "bgr8")
+        except CvBridgeError as e:
+            print '[ERROR] Decode compressed image Failed! ', e
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         angle = Float32()
         speed = Float32()
